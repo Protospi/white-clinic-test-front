@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef, useEffect } from "react";
 import { SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ interface MessageInputProps {
 
 export default function MessageInput({ onSendMessage, isLoading }: MessageInputProps) {
   const [message, setMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const previousLoadingState = useRef(isLoading);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -20,10 +22,29 @@ export default function MessageInput({ onSendMessage, isLoading }: MessageInputP
     }
   };
 
+  // Focus on the input field when the component mounts
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Focus on the input field when loading state changes from true to false
+  useEffect(() => {
+    // If previously loading and now not loading (assistant finished responding)
+    if (previousLoadingState.current === true && isLoading === false) {
+      // Focus the input after a short delay to ensure the UI has updated
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+    // Update the previous loading state
+    previousLoadingState.current = isLoading;
+  }, [isLoading]);
+
   return (
     <footer className="bg-white p-4">
       <form onSubmit={handleSubmit} className="flex space-x-3">
         <Input
+          ref={inputRef}
           className="flex-1 border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           placeholder="Type your message..."
           value={message}

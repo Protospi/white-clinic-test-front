@@ -43,7 +43,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
 
           {waitingForResponse && (
             <div className="flex justify-start mb-4">
-              <div className="flex max-w-xs md:max-w-md lg:max-w-lg flex-row">
+              <div className="flex max-w-sm md:max-w-xl lg:max-w-2xl flex-row">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-gray-200 text-indigo-500">
                     <span className="text-sm">WC</span>
@@ -83,7 +83,7 @@ function MessageBubble({ message }: { message: Message }) {
   
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={`flex max-w-xs md:max-w-md lg:max-w-lg ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+      <div className={`flex max-w-sm md:max-w-xl lg:max-w-4xl ${isUser ? "flex-row-reverse" : "flex-row"}`}>
         <div className="flex-shrink-0">
           <div 
             className={`h-8 w-8 rounded-full flex items-center justify-center ${
@@ -112,12 +112,12 @@ function MessageBubble({ message }: { message: Message }) {
 function MessageSkeleton({ isUser = true }: { isUser?: boolean }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={`flex max-w-xs md:max-w-md lg:max-w-lg ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+      <div className={`flex max-w-sm md:max-w-xl lg:max-w-2xl ${isUser ? "flex-row-reverse" : "flex-row"}`}>
         <div className="flex-shrink-0">
           <Skeleton className="h-8 w-8 rounded-full" />
         </div>
         <div className={isUser ? "mr-2" : "ml-2"}>
-          <Skeleton className="h-24 w-64 rounded-lg" />
+          <Skeleton className="h-24 w-80 rounded-lg" />
         </div>
       </div>
     </div>
