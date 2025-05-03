@@ -139,7 +139,7 @@ const systemPrompt = `
   - Peça a confirmação.  
   - Após a confirmação explícita, informe:  
       
-    “A sua consulta foi agendada com sucesso\! A nossa equipa entrará em contacto brevemente por email, detalhando a consulta e as informações para o depósito inicial que garantirá a reserva da data e hora escolhidas.”
+    "A sua consulta foi agendada com sucesso\! A nossa equipa entrará em contacto brevemente por email, detalhando a consulta e as informações para o depósito inicial que garantirá a reserva da data e hora escolhidas."
   - Retorno da api sobre confirmação do agendamento
   $agendamento
 ---
@@ -293,8 +293,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Conversation not found" });
       }
       
-      // Add user message to conversation
-      const userMessage = {
+      // Define the function call data type
+      interface FunctionCallData {
+        type: string;
+        name?: string;
+        arguments?: string;
+        result?: string;
+      }
+      
+      // Add user message to conversation with extended type
+      const userMessage: {
+        role: "user";
+        content: string;
+        functionCallData?: FunctionCallData;
+      } = {
         role: "user" as const,
         content: validatedData.content
       };
@@ -311,23 +323,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const functionCall = await openai.responses.create({
         model: "gpt-4o",
         input: [{ role: "user", content: updatedSummary }],
-        tools: tools
+        tools: tools as any // Type assertion to fix TS error
       });
 
       // Get the function output
       const functionOutput = functionCall.output;
       console.log("functionCall", functionCall.output);
 
+      // Initialize function call data to track what's happening
+      let functionCallData: FunctionCallData = {
+        type: "none"
+      };
+
       // Check the function output to call the correct function
       if (functionOutput.length > 0 && functionOutput[0].type === "function_call") {
         const functionCall = functionOutput[0];
         const functionName = functionCall.name;
         const functionParameters = functionCall.arguments;
+        
+        // Store the function call data
+        functionCallData = {
+          type: "function_call",
+          name: functionName,
+          arguments: functionParameters
+        };
 
         if (functionName === "checkScheduleAvailability") {
           const { date } = JSON.parse(functionParameters);
           const availability = await checkScheduleAvailability(date);
           console.log("availability", availability);
+          
+          // Update function result
+          functionCallData.result = availability;
           
           // Replace system prompt available dates
           const updatedSystemPrompt = systemPrompt.replace("$disponibilidade", availability);
@@ -338,6 +365,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (name !== "" && email !== "" && birthDate !== "" && nationality !== "" && nif !== "" && userConfirmation) {
             const appointment = await bookAppointment(date, name, email, birthDate, nationality, nif);
             console.log("appointment", appointment);
+
+            // Update function result
+            functionCallData.result = appointment;
 
             // Replace system prompt available dates
             const updatedSystemPrompt = systemPrompt.replace("$agendamento", appointment);
@@ -352,7 +382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
       }
 
-      
+      // Update the user message with function call data
+      userMessage.functionCallData = functionCallData;
       
       // Call OpenAI API
       const response = await openai.chat.completions.create({
