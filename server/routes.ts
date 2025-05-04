@@ -237,12 +237,12 @@ const tools = [
             "description": "The NIF of the patient or empty if not provided"
           },
           "assistantSummary": {
-            "type": "boolean",
-            "description": "The summary of the appointment with all infromation was provided by the assistant? true or false if not provided"
+            "type": "string",
+            "description": "The summary of the appointment with all information was provided or empty if not provided"
           },
           "userConfirmation": {
-            "type": "boolean",
-            "description": "The user confirmed the appointment summary provided by the assistant? true or false if not explicity confirmed"
+            "type": "string",
+            "description": "The user confirmed the appointment summary provided by the assistant or empty if not confirmed"
           }
         },
         "required": [
@@ -350,8 +350,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Call openai function
       const functionCall = await openai.responses.create({
-        model: "gpt-4o",
-        input: [{ role: "user", content: updatedSummary }],
+        model: "gpt-4.1",
+        input: [{ role: "user", content: "Analise o resumo da conversa entre um usuário e um assistente de agendamento de consultas da White Clinic e extraia as informações necessárias para consultar ou agendar uma consulta." + updatedSummary }],
         tools: tools as any // Type assertion to fix TS error
       });
 
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Call OpenAI API
       const response = await openai.chat.completions.create({
-        model: "gpt-4o", // Using gpt-4o which is a valid OpenAI model
+        model: "gpt-4.1", // Using gpt-4o which is a valid OpenAI model
         messages: updatedMessages
       });
       
