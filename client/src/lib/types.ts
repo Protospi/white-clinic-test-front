@@ -9,6 +9,13 @@ export interface FunctionCallData {
   name?: string;
   arguments?: string;
   result?: string;
+  calls?: FunctionCall[];
+}
+
+export interface FunctionCall {
+  name: string;
+  arguments: string;
+  result?: string;
 }
 
 export interface Conversation {

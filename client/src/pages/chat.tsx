@@ -7,7 +7,6 @@ import ChatHeader from "@/components/chat/header";
 import MessageList from "@/components/chat/message-list";
 import MessageInput from "@/components/chat/message-input";
 import LogsDrawer from "@/components/chat/logs-drawer";
-import ExportDrawer from "@/components/chat/export-drawer";
 import { Message } from "@/lib/types";
 
 export default function ChatPage() {
@@ -218,12 +217,6 @@ export default function ChatPage() {
       <LogsDrawer 
         isOpen={isLogsOpen} 
         onClose={handleToggleLogs} 
-        messages={messages}
-      />
-      
-      <ExportDrawer
-        isOpen={isExportOpen}
-        onClose={handleToggleExport}
         messages={messages}
       />
     </div>

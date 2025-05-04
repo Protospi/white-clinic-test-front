@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { PinIcon, History, Trash2, ClipboardList, FileText } from "lucide-react";
+import { PinIcon, History, Trash2, ClipboardList } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface HeaderProps {
@@ -69,23 +69,6 @@ export default function ChatHeader({ onCheckpoint, onClear, onShowLogs, onExport
             </TooltipTrigger>
             <TooltipContent>
               View conversation history
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Export Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={onExport}
-                className="text-gray-500 hover:text-indigo-500"
-              >
-                <FileText className="h-8 w-8" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Export conversation
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

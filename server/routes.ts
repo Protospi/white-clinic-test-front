@@ -236,9 +236,13 @@ const tools = [
             "type": "string",
             "description": "The NIF of the patient or empty if not provided"
           },
+          "assistantSummary": {
+            "type": "boolean",
+            "description": "The summary of the appointment with all infromation was provided by the assistant? true or false if not provided"
+          },
           "userConfirmation": {
             "type": "boolean",
-            "description": "The confirmation of the patient to the appointment summary true or false if not provided"
+            "description": "The user confirmed the appointment summary provided by the assistant? true or false if not explicity confirmed"
           }
         },
         "required": [
@@ -247,6 +251,7 @@ const tools = [
             "email",
             "birthDate",
             "nationality",
+            "assistantSummary",
             "userConfirmation"
         ],
         "additionalProperties": false
@@ -299,6 +304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name?: string;
         arguments?: string;
         result?: string;
+        calls?: Array<{
+          name: string;
+          arguments: string;
+          result?: string;
+        }>;
       }
       
       // Add user message to conversation with extended type
@@ -332,54 +342,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Initialize function call data to track what's happening
       let functionCallData: FunctionCallData = {
-        type: "none"
+        type: "none",
+        calls: []
       };
 
-      // Check the function output to call the correct function
-      if (functionOutput.length > 0 && functionOutput[0].type === "function_call") {
-        const functionCall = functionOutput[0];
-        const functionName = functionCall.name;
-        const functionParameters = functionCall.arguments;
+      // Check the function output to process all function calls
+      if (functionOutput.length > 0) {
+        let hasFunctionCalls = false;
         
-        // Store the function call data
-        functionCallData = {
-          type: "function_call",
-          name: functionName,
-          arguments: functionParameters
-        };
-
-        if (functionName === "checkScheduleAvailability") {
-          const { date } = JSON.parse(functionParameters);
-          const availability = await checkScheduleAvailability(date);
-          console.log("availability", availability);
-          
-          // Update function result
-          functionCallData.result = availability;
-          
-          // Replace system prompt available dates
-          const updatedSystemPrompt = systemPrompt.replace("$disponibilidade", availability);
-          updatedMessages[0].content = updatedSystemPrompt;
-        }
-        if (functionName === "bookAppointment" ) {
-          const { date, name, email, birthDate, nationality, nif, userConfirmation } = JSON.parse(functionParameters);
-          if (name !== "" && email !== "" && birthDate !== "" && nationality !== "" && nif !== "" && userConfirmation) {
-            const appointment = await bookAppointment(date, name, email, birthDate, nationality, nif);
-            console.log("appointment", appointment);
-
-            // Update function result
-            functionCallData.result = appointment;
-
-            // Replace system prompt available dates
-            const updatedSystemPrompt = systemPrompt.replace("$agendamento", appointment);
-            updatedMessages[0].content = updatedSystemPrompt;
+        // Loop through all function outputs
+        for (const output of functionOutput) {
+          if (output.type === "function_call") {
+            hasFunctionCalls = true;
+            const functionName = output.name;
+            const functionParameters = output.arguments;
+            
+            // Store this function call
+            const callData: {
+              name: string;
+              arguments: string;
+              result?: string;
+            } = {
+              name: functionName,
+              arguments: functionParameters
+            };
+            
+            // Process each function call based on its name
+            if (functionName === "checkScheduleAvailability") {
+              const { date } = JSON.parse(functionParameters);
+              const availability = await checkScheduleAvailability(date);
+              console.log("availability", availability);
+              
+              // Update function result
+              callData.result = availability;
+              
+              // Replace system prompt available dates
+              const updatedSystemPrompt = systemPrompt.replace("$disponibilidade", availability);
+              updatedMessages[0].content = updatedSystemPrompt;
+            }
+            else if (functionName === "bookAppointment") {
+              const { date, name, email, birthDate, nationality, nif, assistantSummary, userConfirmation } = JSON.parse(functionParameters);
+              if (name !== "" && email !== "" && birthDate !== "" && nationality !== "" && assistantSummary && userConfirmation) {
+                const appointment = await bookAppointment(date, name, email, birthDate, nationality, nif || "");
+                console.log("appointment", appointment);
+                
+                // Update function result
+                callData.result = appointment;
+                
+                // Replace system prompt available dates
+                const updatedSystemPrompt = systemPrompt.replace("$agendamento", appointment);
+                updatedMessages[0].content = updatedSystemPrompt;
+              }
+            }
+            
+            // Add to the calls array
+            if (!functionCallData.calls) functionCallData.calls = [];
+            functionCallData.calls.push(callData);
           }
         }
+        
+        // Update the main function call data type if we had function calls
+        if (hasFunctionCalls) {
+          functionCallData.type = "function_call";
+          
+          // For backward compatibility, also store the first function call at the root level
+          if (functionCallData.calls && functionCallData.calls.length > 0) {
+            const firstCall = functionCallData.calls[0];
+            functionCallData.name = firstCall.name;
+            functionCallData.arguments = firstCall.arguments;
+            functionCallData.result = firstCall.result;
+          }
+        } else {
+          // No function calls, set default system prompt replacements
+          let updatedSystemPrompt = systemPrompt.replace("$disponibilidade", "Sem disponibilidade de datas");
+          updatedSystemPrompt = updatedSystemPrompt.replace("$agendamento", "Sem agendamento de consultas");
+          updatedMessages[0].content = updatedSystemPrompt;
+        }
       } else {
-        // Replace system prompt available dates
+        // No function output at all, set default system prompt replacements
         let updatedSystemPrompt = systemPrompt.replace("$disponibilidade", "Sem disponibilidade de datas");
         updatedSystemPrompt = updatedSystemPrompt.replace("$agendamento", "Sem agendamento de consultas");
         updatedMessages[0].content = updatedSystemPrompt;
-        
       }
 
       // Update the user message with function call data
