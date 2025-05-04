@@ -19,6 +19,11 @@ export default function MessageInput({ onSendMessage, isLoading }: MessageInputP
     if (message.trim() && !isLoading) {
       onSendMessage(message);
       setMessage("");
+      
+      // Focus the input field immediately after sending the message
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -49,7 +54,6 @@ export default function MessageInput({ onSendMessage, isLoading }: MessageInputP
           placeholder="Type your message..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          disabled={isLoading}
           autoComplete="off"
         />
         <Button 

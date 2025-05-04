@@ -238,11 +238,11 @@ const tools = [
           },
           "assistantSummary": {
             "type": "string",
-            "description": "The summary of the appointment with all information was provided or empty if not provided"
+            "description": "The assistant provided a summary of the appointment with all information given by the user and ask for confirmation"
           },
           "userConfirmation": {
             "type": "string",
-            "description": "The user confirmed the appointment summary provided by the assistant or empty if not confirmed"
+            "description": "After the assistant provided the summary of all information and aks for confirmation, the user confirmed the summary provided by the assistant"
           }
         },
         "required": [
@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Call openai function
       const functionCall = await openai.responses.create({
         model: "gpt-4.1",
-        input: [{ role: "user", content: "Analise o resumo da conversa entre um usuário e um assistente de agendamento de consultas da White Clinic e extraia as informações necessárias para consultar ou agendar uma consulta." + updatedSummary }],
+        input: [{ role: "user", content: updatedSummary }],
         tools: tools as any // Type assertion to fix TS error
       });
 
