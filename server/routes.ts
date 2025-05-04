@@ -283,6 +283,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Get system prompt
+  app.get("/api/system-prompt", async (req: Request, res: Response) => {
+    const conversation = await storage.getConversation(CONVERSATION_ID);
+    
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    
+    // Find the system message
+    const systemMessage = conversation.messages.find(msg => msg.role === "system");
+    
+    if (!systemMessage) {
+      return res.status(404).json({ message: "System prompt not found" });
+    }
+    
+    // Return the system prompt
+    res.json({ systemPrompt: systemMessage.content });
+  });
+  
   // Send message to OpenAI and get response
   app.post("/api/messages", async (req: Request, res: Response) => {
     try {

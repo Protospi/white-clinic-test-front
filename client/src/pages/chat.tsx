@@ -7,11 +7,13 @@ import ChatHeader from "@/components/chat/header";
 import MessageList from "@/components/chat/message-list";
 import MessageInput from "@/components/chat/message-input";
 import LogsDrawer from "@/components/chat/logs-drawer";
+import PromptDrawer from "@/components/chat/prompt-drawer";
 import { Message } from "@/lib/types";
 
 export default function ChatPage() {
   const [isLogsOpen, setIsLogsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
@@ -185,6 +187,11 @@ export default function ChatPage() {
     setIsExportOpen(!isExportOpen);
   };
 
+  // Handle toggle prompt drawer
+  const handleTogglePrompt = () => {
+    setIsPromptOpen(!isPromptOpen);
+  };
+
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messageListRef.current) {
@@ -199,6 +206,7 @@ export default function ChatPage() {
         onClear={handleClear} 
         onShowLogs={handleToggleLogs}
         onExport={handleToggleExport}
+        onShowPrompt={handleTogglePrompt}
         hasCheckpoint={hasCheckpoint}
       />
       
@@ -217,6 +225,11 @@ export default function ChatPage() {
       <LogsDrawer 
         isOpen={isLogsOpen} 
         onClose={handleToggleLogs} 
+        messages={messages}
+      />
+      <PromptDrawer
+        isOpen={isPromptOpen}
+        onClose={handleTogglePrompt}
         messages={messages}
       />
     </div>

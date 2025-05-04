@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { PinIcon, History, Trash2, ClipboardList } from "lucide-react";
+import { PinIcon, History, Trash2, ClipboardList, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface HeaderProps {
@@ -7,10 +7,11 @@ interface HeaderProps {
   onClear: () => void;
   onShowLogs: () => void;
   onExport: () => void;
+  onShowPrompt: () => void;
   hasCheckpoint: boolean;
 }
 
-export default function ChatHeader({ onCheckpoint, onClear, onShowLogs, onExport, hasCheckpoint }: HeaderProps) {
+export default function ChatHeader({ onCheckpoint, onClear, onShowLogs, onExport, onShowPrompt, hasCheckpoint }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm">
       <h1 className="text-lg font-semibold text-gray-800">White Clinic Assistant</h1>
@@ -69,6 +70,23 @@ export default function ChatHeader({ onCheckpoint, onClear, onShowLogs, onExport
             </TooltipTrigger>
             <TooltipContent>
               View conversation history
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Prompt Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={onShowPrompt}
+                className="text-gray-500 hover:text-indigo-500"
+              >
+                <FileText className="h-8 w-8" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              View system prompt
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
