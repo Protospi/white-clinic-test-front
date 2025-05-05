@@ -151,6 +151,13 @@ const systemPrompt = `
 - **Flexibilidade e Empatia:**  
   Se o usuário demonstrar dúvidas, forneça informações detalhadas e reforce os benefícios dos serviços da clínica.
 
+## 6\. Escalamento para Atendimento Humano
+
+- **Regras de Escalamento:**  
+  - Se a mensagem abaixo indicar que a conversa foi escalada para um humano, diga que a equipa entrará em contacto brevemente.
+  $escalamento
+  -
+
 ---
 
 `;
@@ -177,6 +184,12 @@ async function initializeConversation() {
 async function checkScheduleAvailability(date: string) {
   // TODO: Implement schedule availability check
   return "22/05/2025 at 14:00 is available";
+}
+
+// Define mockup function to escalate to human
+async function escalateToHuman(reason: string) {
+  // TODO: Implement escalation to human
+  return "The conversation was escalated to human because " + reason;
 }
 
 // Define mockup function to book appointment
@@ -258,6 +271,28 @@ const tools = [
       }
     }
 ];
+
+// Define tools after the assitant response
+const toolsAfterAssistantResponse = [
+  {
+    "type": "function",
+    "name": "escalateToHuman",
+    "description": "Escalate the conversation to a human if the user ask to talk to a human or the assistant says that equipa will contact the user later by email with the details of the intial depoist to ensure the appointment",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "The reason for escalation or empty if not identifyed"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+]
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -365,6 +400,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         calls: []
       };
 
+      // Variable to track if we have an escalation function call
+      let hasEscalationCall = false;
+      let escalationCallData: FunctionCallData | null = null;
+
       // Check the function output to process all function calls
       if (functionOutput.length > 0) {
         let hasFunctionCalls = false;
@@ -435,12 +474,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // No function calls, set default system prompt replacements
           let updatedSystemPrompt = systemPrompt.replace("$disponibilidade", "Sem disponibilidade de datas");
           updatedSystemPrompt = updatedSystemPrompt.replace("$agendamento", "Sem agendamento de consultas");
+          updatedSystemPrompt = updatedSystemPrompt.replace("$escalamento", "");
           updatedMessages[0].content = updatedSystemPrompt;
         }
       } else {
         // No function output at all, set default system prompt replacements
         let updatedSystemPrompt = systemPrompt.replace("$disponibilidade", "Sem disponibilidade de datas");
         updatedSystemPrompt = updatedSystemPrompt.replace("$agendamento", "Sem agendamento de consultas");
+        updatedSystemPrompt = updatedSystemPrompt.replace("$escalamento", "");
         updatedMessages[0].content = updatedSystemPrompt;
       }
 
@@ -453,10 +494,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messages: updatedMessages
       });
       
-      const assistantMessage = {
+      const assistantMessage: {
+        role: "assistant";
+        content: string;
+        functionCallData?: FunctionCallData;
+      } = {
         role: "assistant" as const,
         content: response.choices[0].message.content || "I'm sorry, I couldn't generate a response."
       };
+
+      // Define the updated summary with the assistant message
+      const updatedSummaryWithAssistantMessage = updatedSummary + "\n" + "Assistant: " + assistantMessage.content;
+      console.log("updatedSummaryWithAssistantMessage", updatedSummaryWithAssistantMessage);
+
+      // Call openai function
+      const functionCallAfterAssistantResponse = await openai.responses.create({
+        model: "gpt-4.1",
+        input: [{ role: "user", content: updatedSummaryWithAssistantMessage }],
+        tools: toolsAfterAssistantResponse as any // Type assertion to fix TS error
+      });
+
+      // Get the function output
+      const functionOutputAfterAssistantResponse = functionCallAfterAssistantResponse.output;
+      console.log("functionCallAfterAssistantResponse", functionCallAfterAssistantResponse.output);
+
+      // Reset escalation flags for assistant response processing
+      hasEscalationCall = false;
+      escalationCallData = null;
+
+      if (functionOutputAfterAssistantResponse.length > 0) {
+        for (const output of functionOutputAfterAssistantResponse) {
+          if (output.type === "function_call") {
+            const functionName = output.name;
+            const functionParameters = output.arguments;
+            
+            if (functionName === "escalateToHuman") {
+              const { reason } = JSON.parse(functionParameters);
+              const escalation = await escalateToHuman(reason);
+              console.log("escalation", escalation);
+              
+              // Update system prompt with escalation info
+              const updatedSystemPrompt = systemPrompt.replace("$escalamento", escalation);
+              updatedMessages[0].content = updatedSystemPrompt;
+
+              // Flag that we have an escalation call - this will be attached to the assistant message
+              hasEscalationCall = true;
+              
+              // Create a separate function call data for the assistant
+              escalationCallData = {
+                type: "function_call",
+                name: functionName,
+                arguments: functionParameters,
+                result: escalation,
+                calls: [{
+                  name: functionName,
+                  arguments: functionParameters,
+                  result: escalation
+                }]
+              };
+            }
+          }
+        }
+      }
+      
+      // If we had an escalation call, attach it to the assistant message
+      if (hasEscalationCall && escalationCallData) {
+        assistantMessage.functionCallData = escalationCallData;
+      }
       
       // Save both messages to conversation
       const finalMessages = [...updatedMessages, assistantMessage];

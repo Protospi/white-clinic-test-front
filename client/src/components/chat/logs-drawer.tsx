@@ -2,7 +2,7 @@ import { Message } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { X, ChevronDown, ChevronRight, Download, UserCog } from "lucide-react";
 import { useState } from "react";
 import { MarkdownRenderer } from "@/lib/markdown-utils";
 import {
@@ -36,6 +36,11 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
     return groups;
   }, []);
 
+  // Check if a function call is an escalation call
+  const isEscalationCall = (callName: string) => {
+    return callName === "escalateToHuman" || callName === "escalateConversation" || callName.toLowerCase().includes("escalate");
+  };
+
   const exportAsMarkdown = () => {
     try {
       let markdown = "# White Clinic Assistant Conversation\n\n";
@@ -51,7 +56,10 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
           if (message.functionCallData.calls && message.functionCallData.calls.length > 0) {
             // Include all function calls
             message.functionCallData.calls.forEach((call, index) => {
-              markdown += `Function ${index + 1}: ${call.name || "N/A"}\n`;
+              const callName = call.name || "N/A";
+              const isEscalation = isEscalationCall(callName);
+              
+              markdown += isEscalation ? `🔔 ESCALATION ${index + 1}: ${callName}\n` : `Function ${index + 1}: ${callName}\n`;
               markdown += `Type: ${message.functionCallData?.type}\n`;
               
               if (call.arguments) {
@@ -62,13 +70,20 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                 markdown += `Result: ${call.result}\n`;
               }
               
+              if (isEscalation) {
+                markdown += `Note: This conversation was escalated to a human representative.\n`;
+              }
+              
               if (message.functionCallData?.calls && index < message.functionCallData.calls.length - 1) {
                 markdown += `\n`;
               }
             });
           } else {
             // For backward compatibility
-            markdown += `Function: ${message.functionCallData.name || "N/A"}\n`;
+            const callName = message.functionCallData.name || "N/A";
+            const isEscalation = isEscalationCall(callName);
+            
+            markdown += isEscalation ? `🔔 ESCALATION: ${callName}\n` : `Function: ${callName}\n`;
             markdown += `Type: ${message.functionCallData.type}\n`;
             
             if (message.functionCallData.arguments) {
@@ -77,6 +92,10 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
             
             if (message.functionCallData.result) {
               markdown += `Result: ${message.functionCallData.result}\n`;
+            }
+            
+            if (isEscalation) {
+              markdown += `Note: This conversation was escalated to a human representative.\n`;
             }
           }
           
@@ -182,15 +201,18 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                         <div className="w-full md:w-4/5 space-y-2">
                           {/* Display multiple function calls if available */}
                           {message.functionCallData.calls && message.functionCallData.calls.length > 0 ? (
-                            message.functionCallData.calls.map((call, callIndex) => (
-                              <Collapsible key={callIndex} className="border rounded-md bg-gray-50">
-                                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-medium text-left text-gray-700 hover:bg-gray-100 rounded-t-md">
+                            message.functionCallData.calls.map((call, callIndex) => {
+                              const isEscalation = isEscalationCall(call.name || "");
+                              return (
+                              <Collapsible key={callIndex} className={`border rounded-md ${isEscalation ? "bg-amber-50 border-amber-300" : "bg-gray-50"}`}>
+                                <CollapsibleTrigger className={`flex items-center justify-between w-full p-2 text-sm font-medium text-left ${isEscalation ? "text-amber-800 hover:bg-amber-100" : "text-gray-700 hover:bg-gray-100"} rounded-t-md`}>
                                   <div className="flex items-center">
-                                    <span className="mr-2 text-xs font-semibold uppercase text-indigo-600">
-                                      Action {callIndex + 1}: {call.name || "Unknown"}
+                                    {isEscalation && <UserCog className="h-4 w-4 mr-1 text-amber-600" />}
+                                    <span className={`mr-2 text-xs font-semibold uppercase ${isEscalation ? "text-amber-700" : "text-indigo-600"}`}>
+                                      {isEscalation ? "Escalation" : "Action"} {callIndex + 1}: {call.name || "Unknown"}
                                     </span>
                                   </div>
-                                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                                  <ChevronDown className={`h-4 w-4 ${isEscalation ? "text-amber-600" : "text-gray-500"}`} />
                                 </CollapsibleTrigger>
                                 <CollapsibleContent className="p-3 text-sm border-t">
                                   <div className="space-y-2">
@@ -201,13 +223,13 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                                     
                                     <div>
                                       <span className="font-semibold text-gray-700">Function:</span>{" "}
-                                      <span className="text-gray-600">{call.name}</span>
+                                      <span className={`${isEscalation ? "text-amber-700 font-semibold" : "text-gray-600"}`}>{call.name}</span>
                                     </div>
                                     
                                     {call.arguments && (
                                       <div>
                                         <span className="font-semibold text-gray-700">Arguments:</span>
-                                        <pre className="mt-1 p-2 bg-gray-100 rounded-md overflow-x-auto text-gray-600 text-xs">
+                                        <pre className={`mt-1 p-2 ${isEscalation ? "bg-amber-100" : "bg-gray-100"} rounded-md overflow-x-auto text-gray-600 text-xs`}>
                                           {JSON.stringify(JSON.parse(call.arguments), null, 2)}
                                         </pre>
                                       </div>
@@ -216,25 +238,34 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                                     {call.result && (
                                       <div>
                                         <span className="font-semibold text-gray-700">Result:</span>
-                                        <div className="mt-1 p-2 bg-gray-100 rounded-md text-gray-600">
+                                        <div className={`mt-1 p-2 ${isEscalation ? "bg-amber-100" : "bg-gray-100"} rounded-md text-gray-600`}>
                                           {call.result}
                                         </div>
+                                      </div>
+                                    )}
+
+                                    {isEscalation && (
+                                      <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded-md">
+                                        <p className="text-amber-800 font-medium">
+                                          This conversation has been escalated to a human representative.
+                                        </p>
                                       </div>
                                     )}
                                   </div>
                                 </CollapsibleContent>
                               </Collapsible>
-                            ))
+                            )})
                           ) : (
                             // Fallback for backward compatibility
-                            <Collapsible className="border rounded-md bg-gray-50">
-                              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-medium text-left text-gray-700 hover:bg-gray-100 rounded-t-md">
+                            <Collapsible className={`border rounded-md ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-50 border-amber-300" : "bg-gray-50"}`}>
+                              <CollapsibleTrigger className={`flex items-center justify-between w-full p-2 text-sm font-medium text-left ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-800 hover:bg-amber-100" : "text-gray-700 hover:bg-gray-100"} rounded-t-md`}>
                                 <div className="flex items-center">
-                                  <span className="mr-2 text-xs font-semibold uppercase text-indigo-600">
-                                    Action: {message.functionCallData.name || "Unknown"}
+                                  {isEscalationCall(message.functionCallData.name || "") && <UserCog className="h-4 w-4 mr-1 text-amber-600" />}
+                                  <span className={`mr-2 text-xs font-semibold uppercase ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-700" : "text-indigo-600"}`}>
+                                    {isEscalationCall(message.functionCallData.name || "") ? "Escalation" : "Action"}: {message.functionCallData.name || "Unknown"}
                                   </span>
                                 </div>
-                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                                <ChevronDown className={`h-4 w-4 ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-600" : "text-gray-500"}`} />
                               </CollapsibleTrigger>
                               <CollapsibleContent className="p-3 text-sm border-t">
                                 <div className="space-y-2">
@@ -246,14 +277,14 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                                   {message.functionCallData.name && (
                                     <div>
                                       <span className="font-semibold text-gray-700">Function:</span>{" "}
-                                      <span className="text-gray-600">{message.functionCallData.name}</span>
+                                      <span className={`${isEscalationCall(message.functionCallData.name) ? "text-amber-700 font-semibold" : "text-gray-600"}`}>{message.functionCallData.name}</span>
                                     </div>
                                   )}
                                   
                                   {message.functionCallData.arguments && (
                                     <div>
                                       <span className="font-semibold text-gray-700">Arguments:</span>
-                                      <pre className="mt-1 p-2 bg-gray-100 rounded-md overflow-x-auto text-gray-600 text-xs">
+                                      <pre className={`mt-1 p-2 ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-100" : "bg-gray-100"} rounded-md overflow-x-auto text-gray-600 text-xs`}>
                                         {JSON.stringify(JSON.parse(message.functionCallData.arguments), null, 2)}
                                       </pre>
                                     </div>
@@ -262,9 +293,17 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                                   {message.functionCallData.result && (
                                     <div>
                                       <span className="font-semibold text-gray-700">Result:</span>
-                                      <div className="mt-1 p-2 bg-gray-100 rounded-md text-gray-600">
+                                      <div className={`mt-1 p-2 ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-100" : "bg-gray-100"} rounded-md text-gray-600`}>
                                         {message.functionCallData.result}
                                       </div>
+                                    </div>
+                                  )}
+
+                                  {isEscalationCall(message.functionCallData.name || "") && (
+                                    <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded-md">
+                                      <p className="text-amber-800 font-medium">
+                                        This conversation has been escalated to a human representative.
+                                      </p>
                                     </div>
                                   )}
                                 </div>
