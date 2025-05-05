@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { PinIcon, History, Trash2, ClipboardList, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface HeaderProps {
   onCheckpoint: () => void;
@@ -9,12 +11,36 @@ interface HeaderProps {
   onExport: () => void;
   onShowPrompt: () => void;
   hasCheckpoint: boolean;
+  useAutobotsApi: boolean;
+  onToggleApi: () => void;
 }
 
-export default function ChatHeader({ onCheckpoint, onClear, onShowLogs, onExport, onShowPrompt, hasCheckpoint }: HeaderProps) {
+export default function ChatHeader({ 
+  onCheckpoint, 
+  onClear, 
+  onShowLogs, 
+  onExport, 
+  onShowPrompt, 
+  hasCheckpoint, 
+  useAutobotsApi, 
+  onToggleApi 
+}: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm">
-      <h1 className="text-lg font-semibold text-gray-800">White Clinic Assistant</h1>
+      <div className="flex items-center space-x-4">
+        <h1 className="text-lg font-semibold text-gray-800">White Clinic Assistant</h1>
+        
+        <div className="flex items-center space-x-2 ml-4">
+          <Switch 
+            id="api-toggle" 
+            checked={useAutobotsApi}
+            onCheckedChange={onToggleApi}
+          />
+          <Label htmlFor="api-toggle" className="text-sm text-gray-700">
+            {useAutobotsApi ? "Using Autobots API" : "Using Default API"}
+          </Label>
+        </div>
+      </div>
       
       <div className="flex space-x-4">
         <TooltipProvider>

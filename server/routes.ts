@@ -5,6 +5,7 @@ import { z } from "zod";
 import { messageSchema } from "@shared/schema";
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import fetch from "node-fetch";
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,18 @@ if (!apiKey) {
 const openai = new OpenAI({ 
   apiKey: apiKey
 });
+
+// Create memory object
+const memory = {
+  variables: {}
+};
+
+// Autobots API configuration
+const AUTOBOTS_API_URL = "http://localhost:3004/api/v1/agents/white-clinic/chat";
+const AUTOBOTS_TOKEN = process.env.DEV_TOKEN || "";
+if (!process.env.DEV_TOKEN) {
+  console.warn("WARNING: DEV_TOKEN is not defined in environment variables for Autobots API");
+}
 
 // Define shared conversation ID (since we're using in-memory storage with a single conversation)
 const CONVERSATION_ID = 1;
@@ -650,6 +663,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error clearing conversation:", error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to clear conversation" 
+      });
+    }
+  });
+  
+  // Send message to Autobots API
+  app.post("/api/autobots/messages", async (req: Request, res: Response) => {
+    try {
+      // Create a local schema for validating incoming messages from client
+      const messageInputSchema = z.object({
+        content: z.string().min(1)
+      });
+      
+      const validatedData = messageInputSchema.parse(req.body);
+      const conversation = await storage.getConversation(CONVERSATION_ID);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // Filter out system messages for the Autobots API
+      const userMessages = conversation.messages
+        .filter(msg => msg.role !== "system")
+      
+      // Add the new user message
+      userMessages.push({
+        role: "user" as const,
+        content: validatedData.content
+      });
+
+      // Create request payload for Autobots API
+      const autobotsPayload = {
+        memory: {
+          messages: userMessages,
+          variables: memory.variables,
+          contactData: {
+            telefone: "558597496194" // Default test phone number
+          }
+        },
+        identifier: "558597496194" // Default test identifier
+      };
+
+      // Call Autobots API
+      const autobotsResponse = await fetch(AUTOBOTS_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${AUTOBOTS_TOKEN}`
+        },
+        body: JSON.stringify(autobotsPayload)
+      });
+
+      if (!autobotsResponse.ok) {
+        const errorText = await autobotsResponse.text();
+        throw new Error(`Autobots API error: ${autobotsResponse.status} - ${errorText}`);
+      }
+
+      const autobotsData = await autobotsResponse.json();
+
+      // console.log("autobotsData", autobotsData);
+      
+      // Create user and assistant messages
+      const userMessage = {
+        role: "user" as const,
+        content: validatedData.content
+      };
+
+      console.log("autobotsData.memory.messages", autobotsData.memory.messages);
+      memory.variables = autobotsData.memory.variables;
+
+      // console.log("memory.variables", memory.variables);
+
+      // const toolCalls = autobotsData.memory.messages.filter((message: any) => message.type === "function_call").map((message: any) => {
+      //   return {
+      //     id: message.id,
+      //     type: message.type,
+      //     status: message.status,
+      //     arguments: message.arguments,
+      //     call_id: message.call_id,
+      //     name: message.name
+      //   }
+      // });
+
+      // const toolReturn = autobotsData.memory.messages.filter((message: any) => message.type === "function_call_output").map((message: any) => {
+      //   return {
+      //     type: message.type,
+      //     call_id: message.call_id,
+      //     output: message.output
+      //   }
+      // });
+
+      // console.log("toolCalls", toolCalls);
+      
+
+      const assistantMessage = {
+        role: "assistant" as const,
+        content: autobotsData.memory.messages[autobotsData.memory.messages.length - 1].content || "I'm sorry, I couldn't generate a response."
+      };
+      
+      // Save both messages to conversation
+      const finalMessages = autobotsData.memory.messages;
+      await storage.updateConversation(CONVERSATION_ID, finalMessages);
+      
+      res.status(200).json({
+        userMessage,
+        assistantMessage
+      });
+    } catch (error) {
+      console.error("Error processing message with Autobots API:", error);
+      
+      res.status(400).json({ 
+        message: error instanceof Error ? error.message : "Failed to process message with Autobots API" 
       });
     }
   });
