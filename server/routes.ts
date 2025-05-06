@@ -405,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the function output
       const functionOutput = functionCall.output;
-      console.log("functionCall", functionCall.output);
+      // console.log("functionCall", functionCall.output);
 
       // Initialize function call data to track what's happening
       let functionCallData: FunctionCallData = {
@@ -442,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (functionName === "checkScheduleAvailability") {
               const { date } = JSON.parse(functionParameters);
               const availability = await checkScheduleAvailability(date);
-              console.log("availability", availability);
+              // console.log("availability", availability);
               
               // Update function result
               callData.result = availability;
@@ -455,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const { date, name, email, birthDate, nationality, nif, assistantSummary, userConfirmation } = JSON.parse(functionParameters);
               if (name !== "" && email !== "" && birthDate !== "" && nationality !== "" && assistantSummary && userConfirmation) {
                 const appointment = await bookAppointment(date, name, email, birthDate, nationality, nif || "");
-                console.log("appointment", appointment);
+                // console.log("appointment", appointment);
                 
                 // Update function result
                 callData.result = appointment;
@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Define the updated summary with the assistant message
       const updatedSummaryWithAssistantMessage = updatedSummary + "\n" + "Assistant: " + assistantMessage.content;
-      console.log("updatedSummaryWithAssistantMessage", updatedSummaryWithAssistantMessage);
+      // console.log("updatedSummaryWithAssistantMessage", updatedSummaryWithAssistantMessage);
 
       // Call openai function
       const functionCallAfterAssistantResponse = await openai.responses.create({
@@ -529,7 +529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get the function output
       const functionOutputAfterAssistantResponse = functionCallAfterAssistantResponse.output;
-      console.log("functionCallAfterAssistantResponse", functionCallAfterAssistantResponse.output);
+      // console.log("functionCallAfterAssistantResponse", functionCallAfterAssistantResponse.output);
 
       // Reset escalation flags for assistant response processing
       hasEscalationCall = false;
@@ -544,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (functionName === "escalateToHuman") {
               const { reason } = JSON.parse(functionParameters);
               const escalation = await escalateToHuman(reason);
-              console.log("escalation", escalation);
+              // console.log("escalation", escalation);
               
               // Update system prompt with escalation info
               const updatedSystemPrompt = systemPrompt.replace("$escalamento", escalation);
@@ -704,6 +704,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         identifier: "558597496194" // Default test identifier
       };
 
+      // console.log("autobotsPayload", autobotsPayload.memory.messages);
+
       // Call Autobots API
       const autobotsResponse = await fetch(AUTOBOTS_API_URL, {
         method: "POST",
@@ -718,10 +720,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const errorText = await autobotsResponse.text();
         throw new Error(`Autobots API error: ${autobotsResponse.status} - ${errorText}`);
       }
-
       const autobotsData = await autobotsResponse.json();
 
-      // console.log("autobotsData", autobotsData);
+      //console.log("autobotsData", autobotsData.memory.messages);
+      // console.log("Function call detection - message array length:", autobotsData.memory.messages.length);
+      
+      // if (autobotsData.memory.messages.length >= 3) {
+      //   console.log("Third last message:", JSON.stringify(autobotsData.memory.messages[autobotsData.memory.messages.length - 3]));
+      //   console.log("Second last message:", JSON.stringify(autobotsData.memory.messages[autobotsData.memory.messages.length - 2]));
+      //   console.log("Last message:", JSON.stringify(autobotsData.memory.messages[autobotsData.memory.messages.length - 1]));
+      // }
       
       // Create user and assistant messages
       const userMessage = {
@@ -729,41 +737,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: validatedData.content
       };
 
-      console.log("autobotsData.memory.messages", autobotsData.memory.messages);
+      // console.log("autobotsData.memory.messages", autobotsData.memory.messages);
       memory.variables = autobotsData.memory.variables;
 
-      // console.log("memory.variables", memory.variables);
+      // Define the function call data type for Autobots API
+      interface AutobotsFunctionCallData {
+        type: string;
+        name?: string;
+        arguments?: string;
+        result?: string;
+        calls?: Array<{
+          name: string;
+          arguments: string;
+          result?: string;
+        }>;
+      }
 
-      // const toolCalls = autobotsData.memory.messages.filter((message: any) => message.type === "function_call").map((message: any) => {
-      //   return {
-      //     id: message.id,
-      //     type: message.type,
-      //     status: message.status,
-      //     arguments: message.arguments,
-      //     call_id: message.call_id,
-      //     name: message.name
-      //   }
-      // });
+      // Define the tool calls and tool calls output
+      let toolCalls = {
+        name: "",
+        type: "",
+        arguments: "",
+        output: ""
+      };
 
-      // const toolReturn = autobotsData.memory.messages.filter((message: any) => message.type === "function_call_output").map((message: any) => {
-      //   return {
-      //     type: message.type,
-      //     call_id: message.call_id,
-      //     output: message.output
-      //   }
-      // });
-
-      // console.log("toolCalls", toolCalls);
+      // Check for function calls in various patterns
+      let hasFunctionCall = false;
       
+      // Pattern 1: Check the last 3 messages (most common pattern)
+      if (autobotsData.memory.messages.length >= 3) {
+        // Find the most recent function_call and its output
+        for (let i = autobotsData.memory.messages.length - 1; i >= 2; i--) {
+          const currentMsg = autobotsData.memory.messages[i - 2];
+          const nextMsg = autobotsData.memory.messages[i - 1];
+          const assistantMsg = autobotsData.memory.messages[i];
+          
+          if (currentMsg && currentMsg.type === "function_call" && nextMsg && nextMsg.type === "function_call_output") {
+            toolCalls.name = currentMsg.name || "";
+            toolCalls.type = "function_call";
+            toolCalls.arguments = currentMsg.arguments || "";
+            toolCalls.output = nextMsg.output || "";
+            hasFunctionCall = true;
+            // console.log("Found function call pattern in messages:", i-2, i-1, i);
+            break;
+          }
+        }
+      }
+      
+      // Pattern 2: Direct function_call property on the last message (alternate pattern)
+      if (!hasFunctionCall) {
+        const lastMessage = autobotsData.memory.messages[autobotsData.memory.messages.length - 1];
+        if (lastMessage && lastMessage.function_call) {
+          toolCalls.name = lastMessage.function_call.name || "";
+          toolCalls.type = "function_call";
+          toolCalls.arguments = lastMessage.function_call.arguments || "";
+          toolCalls.output = lastMessage.function_call.result || "";
+          hasFunctionCall = true;
+        }
+      }
+      
+      // Pattern 3: Check if any message has function_call and manually find pairs
+      if (!hasFunctionCall) {
+        for (let i = 0; i < autobotsData.memory.messages.length - 1; i++) {
+          const currentMsg = autobotsData.memory.messages[i];
+          const nextMsg = autobotsData.memory.messages[i + 1];
+          
+          if (currentMsg && currentMsg.function_call) {
+            toolCalls.name = currentMsg.function_call.name || "";
+            toolCalls.type = "function_call";
+            toolCalls.arguments = currentMsg.function_call.arguments || "";
+            // Assume the next message might contain the result
+            if (nextMsg && nextMsg.role === "function") {
+              toolCalls.output = nextMsg.content || "";
+            }
+            hasFunctionCall = true;
+            break;
+          }
+        }
+      }
 
-      const assistantMessage = {
+      // console.log("Final toolCalls object:", JSON.stringify(toolCalls));
+      // console.log("Has function call:", hasFunctionCall);
+
+      // Define the assistant message
+      const assistantMessage: {
+        role: "assistant";
+        content: string;
+        functionCallData?: AutobotsFunctionCallData;
+      } = {
         role: "assistant" as const,
         content: autobotsData.memory.messages[autobotsData.memory.messages.length - 1].content || "I'm sorry, I couldn't generate a response."
       };
       
+      // Add function call data to assistant message if it exists
+      if (hasFunctionCall && toolCalls.name) {
+        assistantMessage.functionCallData = {
+          type: "function_call",
+          name: toolCalls.name,
+          arguments: toolCalls.arguments,
+          result: toolCalls.output || "",
+          calls: [{
+            name: toolCalls.name,
+            arguments: toolCalls.arguments,
+            result: toolCalls.output || ""
+          }]
+        };
+        
+        // Log the function call data being attached to the assistant message
+        // console.log("Function call data attached:", {
+        //   name: toolCalls.name,
+        //   arguments: toolCalls.arguments,
+        //   output: toolCalls.output
+        // });
+      }
+      
       // Save both messages to conversation
-      const finalMessages = autobotsData.memory.messages;
+      let finalMessages = autobotsData.memory.messages;
+      
+      // Filter out messages with undefined roles or system-only message types
+      finalMessages = finalMessages.filter((msg: any) => {
+        // Keep only messages with a valid role (user or assistant)
+        if (!msg.role || (msg.role !== 'user' && msg.role !== 'assistant')) {
+          return false;
+        }
+        
+        // Filter out any system or function messages without content
+        if (!msg.content && msg.role === 'system') {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // console.log("Filtered messages:", finalMessages.length);
+      
+      // Find the last message (which should be the assistant's response)
+      // and update it with function call data if it exists
+      if (finalMessages.length > 0 && assistantMessage.functionCallData) {
+        const lastMessageIndex = finalMessages.length - 1;
+        if (finalMessages[lastMessageIndex].role === 'assistant') {
+          finalMessages[lastMessageIndex].functionCallData = assistantMessage.functionCallData;
+        } else {
+          // Find the most recent assistant message
+          for (let i = finalMessages.length - 1; i >= 0; i--) {
+            if (finalMessages[i].role === 'assistant') {
+              finalMessages[i].functionCallData = assistantMessage.functionCallData;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Log the final messages to see the structure
+      // console.log("Final messages with functionCallData:", 
+      //   finalMessages.map((msg: any) => ({
+      //     role: msg.role,
+      //     hasFunctionCallData: !!msg.functionCallData
+      //   }))
+      // );
+      
       await storage.updateConversation(CONVERSATION_ID, finalMessages);
+      
+      // Log the response being sent to the client
+      // console.log("Response object sent to client:", {
+      //   userMessage: {
+      //     role: userMessage.role,
+      //     content: userMessage.content
+      //   },
+      //   assistantMessage: {
+      //     role: assistantMessage.role,
+      //     content: assistantMessage.content,
+      //     hasFunctionCallData: assistantMessage.functionCallData ? true : false,
+      //     functionCallData: assistantMessage.functionCallData
+      //   }
+      // });
       
       res.status(200).json({
         userMessage,

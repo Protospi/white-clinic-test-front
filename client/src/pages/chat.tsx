@@ -17,7 +17,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
-  const [useAutobotsApi, setUseAutobotsApi] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -44,9 +43,8 @@ export default function ChatPage() {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      // Use the appropriate API endpoint based on the toggle state
-      const endpoint = useAutobotsApi ? "/api/autobots/messages" : "/api/messages";
-      const response = await apiRequest("POST", endpoint, { content });
+      // Always use the autobots API endpoint
+      const response = await apiRequest("POST", "/api/autobots/messages", { content });
       return response.json();
     },
     onSuccess: (data) => {
@@ -195,15 +193,6 @@ export default function ChatPage() {
     setIsPromptOpen(!isPromptOpen);
   };
 
-  // Handle API toggle
-  const handleToggleApi = () => {
-    setUseAutobotsApi(prev => !prev);
-    toast({
-      title: `API Changed`,
-      description: `Now using ${!useAutobotsApi ? 'Autobots' : 'Default'} API`,
-    });
-  };
-
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messageListRef.current) {
@@ -220,8 +209,6 @@ export default function ChatPage() {
         onExport={handleToggleExport}
         onShowPrompt={handleTogglePrompt}
         hasCheckpoint={hasCheckpoint}
-        useAutobotsApi={useAutobotsApi}
-        onToggleApi={handleToggleApi}
       />
       
       <MessageList 
