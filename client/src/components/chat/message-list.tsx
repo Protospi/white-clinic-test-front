@@ -1,9 +1,8 @@
 import { forwardRef, useEffect, useState } from "react";
-import { Message, FunctionCallData, FunctionCall } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface MessageListProps {
-  messages: Message[];
+  messages: any[];
   isLoading: boolean;
   waitingForResponse?: boolean;
 }
@@ -78,55 +77,31 @@ function TypingAnimation() {
   return <span className="animate-pulse">{dots || ' '}</span>;
 }
 
-function FunctionCallDisplay({ functionCallData }: { functionCallData: FunctionCallData }) {
+function FunctionCallMessage({ message }: { message: any }) {
   return (
-    <div className="mt-2 border-t border-gray-200 pt-2">
-      <div className="text-xs font-medium text-gray-500">Function Call</div>
-      {functionCallData.calls && functionCallData.calls.length > 0 ? (
-        functionCallData.calls.map((call: FunctionCall, index: number) => (
-          <div key={index} className="mt-1">
-            <div className="bg-gray-100 p-2 rounded text-xs">
-              <div><span className="font-semibold">Name:</span> {call.name}</div>
-              {call.arguments && (
-                <div className="mt-1">
-                  <span className="font-semibold">Arguments:</span>
-                  <pre className="mt-1 bg-gray-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-                    {formatJSON(call.arguments)}
-                  </pre>
-                </div>
-              )}
-              {call.result && (
-                <div className="mt-1">
-                  <span className="font-semibold">Result:</span>
-                  <pre className="mt-1 bg-gray-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-                    {typeof call.result === 'string' ? call.result : JSON.stringify(call.result, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </div>
-        ))
-      ) : (
+    <div className="bg-orange-100 p-2 rounded text-xs">
+      <div><span className="font-semibold">Function Name:</span> {message.name}</div>
+      {message.arguments && (
         <div className="mt-1">
-          <div className="bg-gray-100 p-2 rounded text-xs">
-            <div><span className="font-semibold">Name:</span> {functionCallData.name}</div>
-            {functionCallData.arguments && (
-              <div className="mt-1">
-                <span className="font-semibold">Arguments:</span>
-                <pre className="mt-1 bg-gray-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-                  {formatJSON(functionCallData.arguments)}
-                </pre>
-              </div>
-            )}
-            {functionCallData.result && (
-              <div className="mt-1">
-                <span className="font-semibold">Result:</span>
-                <pre className="mt-1 bg-gray-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-                  {typeof functionCallData.result === 'string' ? functionCallData.result : JSON.stringify(functionCallData.result, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
+          <span className="font-semibold">Arguments:</span>
+          <pre className="mt-1 bg-orange-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
+            {formatJSON(message.arguments)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FunctionOutputMessage({ message }: { message: any }) {
+  return (
+    <div className="bg-green-100 p-2 rounded text-xs">
+      <div><span className="font-semibold">Function Output:</span></div>
+      {message.output && (
+        <div className="mt-1">
+          <pre className="mt-1 bg-green-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
+            {formatJSON(message.output)}
+          </pre>
         </div>
       )}
     </div>
@@ -135,14 +110,28 @@ function FunctionCallDisplay({ functionCallData }: { functionCallData: FunctionC
 
 function formatJSON(jsonString: string) {
   try {
-    return JSON.stringify(JSON.parse(jsonString), null, 2);
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed, null, 2);
   } catch (e) {
     return jsonString;
   }
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message }: { message: any }) {
   const isUser = message.role === "user";
+  const isAssistant = message.role === "assistant";
+  const isFunctionCall = message.type === "function_call";
+  const isFunctionOutput = message.type === "function_call_output";
+  
+  // Skip system messages and unsupported types
+  if (message.role === "system" || (!isUser && !isAssistant && !isFunctionCall && !isFunctionOutput)) {
+    return null;
+  }
+  
+  // Skip function calls with no name
+  if (isFunctionCall && !message.name) {
+    return null;
+  }
   
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
@@ -152,23 +141,62 @@ function MessageBubble({ message }: { message: Message }) {
             className={`h-8 w-8 rounded-full flex items-center justify-center ${
               isUser 
                 ? "bg-indigo-500 text-white" 
-                : "bg-white border border-gray-200 text-indigo-500"
+                : isFunctionCall
+                  ? "bg-orange-500 text-white"
+                  : isFunctionOutput
+                    ? "bg-green-500 text-white"
+                    : "bg-white border border-gray-200 text-indigo-500"
             }`}
           >
-            <span className="text-sm">{isUser ? "U" : "WC"}</span>
+            <span className="text-sm">
+              {isUser 
+                ? "U" 
+                : isFunctionCall 
+                  ? "F" 
+                  : isFunctionOutput 
+                    ? "R" 
+                    : "A"}
+            </span>
           </div>
         </div>
         <div 
           className={`p-3 rounded-lg ${
             isUser 
               ? "bg-indigo-100 text-gray-800 mr-2" 
-              : "bg-white text-gray-800 shadow-sm ml-2"
+              : isFunctionCall
+                ? "bg-orange-100 text-gray-800 ml-2"
+                : isFunctionOutput
+                  ? "bg-green-100 text-gray-800 ml-2"
+                  : "bg-white text-gray-800 shadow-sm ml-2"
           }`}
         >
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          {message.content && (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          )}
           
-          {message.functionCallData && message.functionCallData.type === "function_call" && (
-            <FunctionCallDisplay functionCallData={message.functionCallData} />
+          {isFunctionCall && (
+            <FunctionCallMessage message={message} />
+          )}
+          
+          {isFunctionOutput && (
+            <FunctionOutputMessage message={message} />
+          )}
+          
+          {message.function_call && !isFunctionCall && (
+            <div className="mt-2 border-t border-gray-200 pt-2">
+              <div className="text-xs font-medium text-gray-500">Function Call</div>
+              <div className="bg-orange-100 p-2 rounded text-xs mt-1">
+                <div><span className="font-semibold">Name:</span> {message.function_call.name}</div>
+                {message.function_call.arguments && (
+                  <div className="mt-1">
+                    <span className="font-semibold">Arguments:</span>
+                    <pre className="mt-1 bg-orange-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
+                      {formatJSON(message.function_call.arguments)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>

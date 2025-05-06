@@ -7,16 +7,13 @@ import ChatHeader from "@/components/chat/header";
 import MessageList from "@/components/chat/message-list";
 import MessageInput from "@/components/chat/message-input";
 import LogsDrawer from "@/components/chat/logs-drawer";
-import PromptDrawer from "@/components/chat/prompt-drawer";
-import { Message } from "@/lib/types";
 
 export default function ChatPage() {
   const [isLogsOpen, setIsLogsOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -43,30 +40,41 @@ export default function ChatPage() {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      // Always use the autobots API endpoint
       const response = await apiRequest("POST", "/api/autobots/messages", { content });
       return response.json();
     },
     onSuccess: (data) => {
       // Replace all messages with the updated list from the API
-      // to keep everything in sync
-      queryClient.invalidateQueries({ queryKey: ["/api/conversation"] });
+      setMessages(data.messages || []);
       
-      // Add the assistant message immediately (user message is already displayed)
-      setMessages((prevMessages) => {
-        // Remove the last user message if it's a duplicate of what we just sent
-        const filteredMessages = prevMessages.slice(0, -1);
-        return [
-          ...filteredMessages,
-          data.userMessage,
-          data.assistantMessage
-        ];
-      });
+      // Invalidate conversation query to keep sync with server
+      queryClient.invalidateQueries({ queryKey: ["/api/conversation"] });
     },
     onError: () => {
       toast({
         title: "Error",
         description: "Failed to send message",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Debug message mutation
+  const debugMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const response = await apiRequest("POST", "/api/autobots/debug", { content });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log("Debug response:", data);
+      
+      // Replace all messages with raw messages from the API
+      setMessages(data.messages || []);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to debug message",
         variant: "destructive"
       });
     }
@@ -146,20 +154,51 @@ export default function ChatPage() {
   const handleSendMessage = (content: string) => {
     if (!content.trim()) return;
     
-    // Immediately add user message to the UI
-    const userMessage: Message = { role: "user", content };
-    setMessages(prev => [...prev, userMessage]);
+    // Toggle debug mode with a special command
+    if (content.toLowerCase().trim() === "/debug") {
+      setDebugMode(!debugMode);
+      toast({
+        title: debugMode ? "Debug Mode Disabled" : "Debug Mode Enabled",
+        description: debugMode 
+          ? "Normal mode activated. Messages will be sent to the regular endpoint."
+          : "Debug mode activated. Messages will show raw response data."
+      });
+      return;
+    }
+    
+    // Temporarily add user message to UI for responsiveness
+    const temporaryUserMessage = {
+      role: "user",
+      content: content
+    };
+    
+    setMessages(prev => [...prev, temporaryUserMessage]);
     setWaitingForResponse(true);
     
-    // Send to backend
-    sendMessageMutation.mutate(content, {
-      onSuccess: () => {
-        setWaitingForResponse(false);
-      },
-      onError: () => {
-        setWaitingForResponse(false);
-      }
-    });
+    // Send to appropriate backend endpoint based on debug mode
+    if (debugMode) {
+      debugMessageMutation.mutate(content, {
+        onSuccess: () => {
+          setWaitingForResponse(false);
+        },
+        onError: () => {
+          setWaitingForResponse(false);
+          // Remove temporary message on error
+          setMessages(prev => prev.filter(m => m !== temporaryUserMessage));
+        }
+      });
+    } else {
+      sendMessageMutation.mutate(content, {
+        onSuccess: () => {
+          setWaitingForResponse(false);
+        },
+        onError: () => {
+          setWaitingForResponse(false);
+          // Remove temporary message on error
+          setMessages(prev => prev.filter(m => m !== temporaryUserMessage));
+        }
+      });
+    }
   };
 
   // Handle checkpoint actions
@@ -182,16 +221,6 @@ export default function ChatPage() {
   const handleToggleLogs = () => {
     setIsLogsOpen(!isLogsOpen);
   };
-  
-  // Handle toggle export drawer
-  const handleToggleExport = () => {
-    setIsExportOpen(!isExportOpen);
-  };
-
-  // Handle toggle prompt drawer
-  const handleTogglePrompt = () => {
-    setIsPromptOpen(!isPromptOpen);
-  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -206,9 +235,8 @@ export default function ChatPage() {
         onCheckpoint={handleCheckpoint} 
         onClear={handleClear} 
         onShowLogs={handleToggleLogs}
-        onExport={handleToggleExport}
-        onShowPrompt={handleTogglePrompt}
         hasCheckpoint={hasCheckpoint}
+        debugMode={debugMode}
       />
       
       <MessageList 
@@ -220,17 +248,17 @@ export default function ChatPage() {
       
       <MessageInput 
         onSendMessage={handleSendMessage} 
-        isLoading={sendMessageMutation.isPending || waitingForResponse}
+        isLoading={
+          sendMessageMutation.isPending || 
+          debugMessageMutation.isPending || 
+          waitingForResponse
+        }
+        debugMode={debugMode}
       />
       
       <LogsDrawer 
         isOpen={isLogsOpen} 
         onClose={handleToggleLogs} 
-        messages={messages}
-      />
-      <PromptDrawer
-        isOpen={isPromptOpen}
-        onClose={handleTogglePrompt}
         messages={messages}
       />
     </div>

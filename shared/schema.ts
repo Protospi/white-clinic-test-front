@@ -2,13 +2,27 @@ import { pgTable, text, serial, integer, boolean, jsonb } from "drizzle-orm/pg-c
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Define the message schema
-export const messageSchema = z.object({
-  role: z.enum(["system", "user", "assistant"]),
-  content: z.string()
+// Define the function call data schema
+export const functionCallSchema = z.object({
+  type: z.string(),
+  name: z.string().optional(),
+  arguments: z.string().optional(),
+  result: z.string().optional(),
+  calls: z.array(
+    z.object({
+      name: z.string(),
+      arguments: z.string(),
+      result: z.string().optional()
+    })
+  ).optional()
 });
 
-export type Message = z.infer<typeof messageSchema>;
+export type FunctionCallData = z.infer<typeof functionCallSchema>;
+
+// Define message as any shape to accommodate all Autobots API message formats
+export const messageSchema = z.any();
+
+export type Message = any; // Allow any message format from Autobots API
 
 // Define the conversation schema
 export const conversations = pgTable("conversations", {

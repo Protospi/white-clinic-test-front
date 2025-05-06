@@ -1,8 +1,5 @@
-export interface Message {
-  role: "system" | "user" | "assistant";
-  content: string;
-  functionCallData?: FunctionCallData;
-}
+// Allow any message format from Autobots API
+export type Message = any;
 
 export interface FunctionCallData {
   type: string;

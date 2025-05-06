@@ -1,4 +1,3 @@
-import { Message } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 interface LogsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  messages: Message[];
+  messages: any[];
 }
 
 export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProps) {
@@ -23,7 +22,7 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
 
   // Group messages by "conversation segments"
   // Each segment is a sequence of messages without clear breaks
-  const messageGroups = messages.reduce<Message[][]>((groups, message, index) => {
+  const messageGroups = messages.reduce<any[][]>((groups, message, index) => {
     if (index === 0) {
       // Start the first group
       return [[message]];
@@ -46,57 +45,60 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
       let markdown = "# White Clinic Assistant Conversation\n\n";
     
       messages.forEach((message) => {
-        const speaker = message.role === "user" ? "**User**" : "**Assistant**";
-        markdown += `${speaker}: ${message.content}\n\n`;
-        
-        // Include function call data if present
-        if (message.functionCallData && message.functionCallData.type !== "none") {
-          markdown += "```\n";
+        // Handle user and assistant messages
+        if (message.role === "user" || message.role === "assistant") {
+          const speaker = message.role === "user" ? "**User**" : "**Assistant**";
+          markdown += `${speaker}: ${message.content || ""}\n\n`;
           
-          if (message.functionCallData.calls && message.functionCallData.calls.length > 0) {
-            // Include all function calls
-            message.functionCallData.calls.forEach((call, index) => {
-              const callName = call.name || "N/A";
-              const isEscalation = isEscalationCall(callName);
-              
-              markdown += isEscalation ? `🔔 ESCALATION ${index + 1}: ${callName}\n` : `Function ${index + 1}: ${callName}\n`;
-              markdown += `Type: ${message.functionCallData?.type}\n`;
-              
-              if (call.arguments) {
-                markdown += `Arguments: ${call.arguments}\n`;
-              }
-              
-              if (call.result) {
-                markdown += `Result: ${call.result}\n`;
-              }
-              
-              if (isEscalation) {
-                markdown += `Note: This conversation was escalated to a human representative.\n`;
-              }
-              
-              if (message.functionCallData?.calls && index < message.functionCallData.calls.length - 1) {
-                markdown += `\n`;
-              }
-            });
-          } else {
-            // For backward compatibility
-            const callName = message.functionCallData.name || "N/A";
+          // Include function call if present in assistant message
+          if (message.function_call) {
+            markdown += "```\n";
+            const callName = message.function_call.name || "N/A";
             const isEscalation = isEscalationCall(callName);
             
             markdown += isEscalation ? `🔔 ESCALATION: ${callName}\n` : `Function: ${callName}\n`;
-            markdown += `Type: ${message.functionCallData.type}\n`;
             
-            if (message.functionCallData.arguments) {
-              markdown += `Arguments: ${message.functionCallData.arguments}\n`;
+            if (message.function_call.arguments) {
+              markdown += `Arguments: ${formatJSON(message.function_call.arguments)}\n`;
             }
             
-            if (message.functionCallData.result) {
-              markdown += `Result: ${message.functionCallData.result}\n`;
+            if (message.function_call.result) {
+              markdown += `Result: ${message.function_call.result}\n`;
             }
             
             if (isEscalation) {
               markdown += `Note: This conversation was escalated to a human representative.\n`;
             }
+            
+            markdown += "```\n\n";
+          }
+        }
+        // Handle standalone function call messages
+        else if (message.type === "function_call") {
+          markdown += "**Function Call**:\n\n";
+          markdown += "```\n";
+          const callName = message.name || "N/A";
+          const isEscalation = isEscalationCall(callName);
+          
+          markdown += isEscalation ? `🔔 ESCALATION: ${callName}\n` : `Function: ${callName}\n`;
+          
+          if (message.arguments) {
+            markdown += `Arguments: ${formatJSON(message.arguments)}\n`;
+          }
+          
+          if (isEscalation) {
+            markdown += `Note: This conversation was escalated to a human representative.\n`;
+          }
+          
+          markdown += "```\n\n";
+        }
+        // Handle standalone function output messages
+        else if (message.type === "function_call_output") {
+          markdown += "**Function Output**:\n\n";
+          markdown += "```\n";
+          
+          if (message.output) {
+            markdown += `Output: ${formatJSON(message.output)}\n`;
           }
           
           markdown += "```\n\n";
@@ -128,6 +130,38 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
         variant: "destructive"
       });
     }
+  };
+
+  // Determine if message should be displayed
+  const shouldDisplayMessage = (message: any) => {
+    // Always display user and assistant messages
+    if (message.role === "user" || message.role === "assistant") {
+      return true;
+    }
+    
+    // Display function call and function output messages
+    if (message.type === "function_call" || message.type === "function_call_output") {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Get message content
+  const getMessageContent = (message: any) => {
+    if (message.content) {
+      return message.content;
+    }
+    
+    if (message.type === "function_call") {
+      return `Function call: ${message.name}`;
+    }
+    
+    if (message.type === "function_call_output") {
+      return `Function output`;
+    }
+    
+    return "No content";
   };
 
   return (
@@ -164,156 +198,113 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
             messageGroups.map((group, groupIndex) => (
               <div key={groupIndex} className="border-b border-gray-200 pb-4">
                 {group.map((message, messageIndex) => (
-                  <div key={messageIndex} className="mb-4">
-                    <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-1`}>
-                      {/* For assistant messages */}
-                      {message.role !== "user" && (
-                        <div className="flex items-start w-4/5">
-                          <div className="flex-shrink-0 mr-2">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-gray-200 text-indigo-500">
-                              <span className="text-sm">WC</span>
+                  shouldDisplayMessage(message) && (
+                    <div key={messageIndex} className="mb-4">
+                      <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-1`}>
+                        {/* For assistant messages */}
+                        {message.role === "assistant" && (
+                          <div className="flex items-start w-4/5">
+                            <div className="flex-shrink-0 mr-2">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-gray-200 text-indigo-500">
+                                <span className="text-sm">A</span>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex-1 p-3 rounded-lg bg-white text-gray-800 shadow-sm">
-                            <MarkdownRenderer content={message.content} />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* For user messages */}
-                      {message.role === "user" && (
-                        <div className="flex items-start w-4/5 flex-row-reverse">
-                          <div className="flex-shrink-0 ml-2">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-indigo-500 text-white">
-                              <span className="text-sm">U</span>
-                            </div>
-                          </div>
-                          <div className="flex-1 p-3 rounded-lg bg-indigo-100 text-gray-800">
-                            <p className="whitespace-pre-wrap">{message.content}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Function Call Data Display */}
-                    {message.functionCallData && message.functionCallData.type !== "none" && (
-                      <div className={`mt-2 ${message.role === "user" ? "mr-10 flex justify-end" : "ml-10"}`}>
-                        <div className="w-full md:w-4/5 space-y-2">
-                          {/* Display multiple function calls if available */}
-                          {message.functionCallData.calls && message.functionCallData.calls.length > 0 ? (
-                            message.functionCallData.calls.map((call, callIndex) => {
-                              const isEscalation = isEscalationCall(call.name || "");
-                              return (
-                              <Collapsible key={callIndex} className={`border rounded-md ${isEscalation ? "bg-amber-50 border-amber-300" : "bg-gray-50"}`}>
-                                <CollapsibleTrigger className={`flex items-center justify-between w-full p-2 text-sm font-medium text-left ${isEscalation ? "text-amber-800 hover:bg-amber-100" : "text-gray-700 hover:bg-gray-100"} rounded-t-md`}>
-                                  <div className="flex items-center">
-                                    {isEscalation && <UserCog className="h-4 w-4 mr-1 text-amber-600" />}
-                                    <span className={`mr-2 text-xs font-semibold uppercase ${isEscalation ? "text-amber-700" : "text-indigo-600"}`}>
-                                      {isEscalation ? "Escalation" : "Action"} {callIndex + 1}: {call.name || "Unknown"}
-                                    </span>
-                                  </div>
-                                  <ChevronDown className={`h-4 w-4 ${isEscalation ? "text-amber-600" : "text-gray-500"}`} />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="p-3 text-sm border-t">
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-semibold text-gray-700">Type:</span>{" "}
-                                      <span className="text-gray-600">{message.functionCallData?.type}</span>
+                            <div className="flex-1 p-3 rounded-lg bg-white text-gray-800 shadow-sm">
+                              {message.content && <MarkdownRenderer content={message.content} />}
+                              
+                              {/* Display embedded function call if present */}
+                              {message.function_call && (
+                                <Collapsible className="mt-2 border rounded-md bg-orange-50">
+                                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-medium text-left text-orange-800 hover:bg-orange-100 rounded-t-md">
+                                    <div className="flex items-center">
+                                      <span className="mr-2 text-xs font-semibold uppercase text-orange-700">
+                                        Function Call: {message.function_call.name || "Unknown"}
+                                      </span>
                                     </div>
-                                    
-                                    <div>
-                                      <span className="font-semibold text-gray-700">Function:</span>{" "}
-                                      <span className={`${isEscalation ? "text-amber-700 font-semibold" : "text-gray-600"}`}>{call.name}</span>
-                                    </div>
-                                    
-                                    {call.arguments && (
+                                    <ChevronDown className="h-4 w-4 text-orange-600" />
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent className="p-3 text-sm border-t">
+                                    <div className="space-y-2">
                                       <div>
-                                        <span className="font-semibold text-gray-700">Arguments:</span>
-                                        <pre className={`mt-1 p-2 ${isEscalation ? "bg-amber-100" : "bg-gray-100"} rounded-md overflow-x-auto text-gray-600 text-xs`}>
-                                          {JSON.stringify(JSON.parse(call.arguments), null, 2)}
-                                        </pre>
+                                        <span className="font-semibold text-gray-700">Function:</span>{" "}
+                                        <span className="text-gray-600">{message.function_call.name}</span>
                                       </div>
-                                    )}
-                                    
-                                    {call.result && (
-                                      <div>
-                                        <span className="font-semibold text-gray-700">Result:</span>
-                                        <div className={`mt-1 p-2 ${isEscalation ? "bg-amber-100" : "bg-gray-100"} rounded-md text-gray-600`}>
-                                          {call.result}
+                                      
+                                      {message.function_call.arguments && (
+                                        <div>
+                                          <span className="font-semibold text-gray-700">Arguments:</span>
+                                          <pre className="mt-1 p-2 bg-orange-100 rounded-md overflow-x-auto text-gray-600 text-xs">
+                                            {formatJSON(message.function_call.arguments)}
+                                          </pre>
                                         </div>
-                                      </div>
-                                    )}
-
-                                    {isEscalation && (
-                                      <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded-md">
-                                        <p className="text-amber-800 font-medium">
-                                          This conversation has been escalated to a human representative.
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            )})
-                          ) : (
-                            // Fallback for backward compatibility
-                            <Collapsible className={`border rounded-md ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-50 border-amber-300" : "bg-gray-50"}`}>
-                              <CollapsibleTrigger className={`flex items-center justify-between w-full p-2 text-sm font-medium text-left ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-800 hover:bg-amber-100" : "text-gray-700 hover:bg-gray-100"} rounded-t-md`}>
-                                <div className="flex items-center">
-                                  {isEscalationCall(message.functionCallData.name || "") && <UserCog className="h-4 w-4 mr-1 text-amber-600" />}
-                                  <span className={`mr-2 text-xs font-semibold uppercase ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-700" : "text-indigo-600"}`}>
-                                    {isEscalationCall(message.functionCallData.name || "") ? "Escalation" : "Action"}: {message.functionCallData.name || "Unknown"}
-                                  </span>
+                                      )}
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* For user messages */}
+                        {message.role === "user" && (
+                          <div className="flex items-start w-4/5 flex-row-reverse">
+                            <div className="flex-shrink-0 ml-2">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-indigo-500 text-white">
+                                <span className="text-sm">U</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-indigo-100 text-gray-800">
+                              <p className="whitespace-pre-wrap">{message.content}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* For function call messages */}
+                        {message.type === "function_call" && (
+                          <div className="flex items-start w-4/5">
+                            <div className="flex-shrink-0 mr-2">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-orange-500 text-white">
+                                <span className="text-sm">F</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-orange-50 text-gray-800 shadow-sm">
+                              <div className="text-sm font-semibold text-orange-700 mb-1">Function Call: {message.name}</div>
+                              {message.arguments && (
+                                <div>
+                                  <span className="text-xs font-medium text-gray-600">Arguments:</span>
+                                  <pre className="mt-1 p-2 bg-orange-100 rounded-md overflow-x-auto text-gray-600 text-xs">
+                                    {formatJSON(message.arguments)}
+                                  </pre>
                                 </div>
-                                <ChevronDown className={`h-4 w-4 ${isEscalationCall(message.functionCallData.name || "") ? "text-amber-600" : "text-gray-500"}`} />
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="p-3 text-sm border-t">
-                                <div className="space-y-2">
-                                  <div>
-                                    <span className="font-semibold text-gray-700">Type:</span>{" "}
-                                    <span className="text-gray-600">{message.functionCallData?.type}</span>
-                                  </div>
-                                  
-                                  {message.functionCallData.name && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">Function:</span>{" "}
-                                      <span className={`${isEscalationCall(message.functionCallData.name) ? "text-amber-700 font-semibold" : "text-gray-600"}`}>{message.functionCallData.name}</span>
-                                    </div>
-                                  )}
-                                  
-                                  {message.functionCallData.arguments && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">Arguments:</span>
-                                      <pre className={`mt-1 p-2 ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-100" : "bg-gray-100"} rounded-md overflow-x-auto text-gray-600 text-xs`}>
-                                        {JSON.stringify(JSON.parse(message.functionCallData.arguments), null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  
-                                  {message.functionCallData.result && (
-                                    <div>
-                                      <span className="font-semibold text-gray-700">Result:</span>
-                                      <div className={`mt-1 p-2 ${isEscalationCall(message.functionCallData.name || "") ? "bg-amber-100" : "bg-gray-100"} rounded-md text-gray-600`}>
-                                        {message.functionCallData.result}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {isEscalationCall(message.functionCallData.name || "") && (
-                                    <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded-md">
-                                      <p className="text-amber-800 font-medium">
-                                        This conversation has been escalated to a human representative.
-                                      </p>
-                                    </div>
-                                  )}
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* For function output messages */}
+                        {message.type === "function_call_output" && (
+                          <div className="flex items-start w-4/5">
+                            <div className="flex-shrink-0 mr-2">
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-green-500 text-white">
+                                <span className="text-sm">R</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 p-3 rounded-lg bg-green-50 text-gray-800 shadow-sm">
+                              <div className="text-sm font-semibold text-green-700 mb-1">Function Output</div>
+                              {message.output && (
+                                <div>
+                                  <pre className="mt-1 p-2 bg-green-100 rounded-md overflow-x-auto text-gray-600 text-xs">
+                                    {formatJSON(message.output)}
+                                  </pre>
                                 </div>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-                        </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )
                 ))}
               </div>
             ))
@@ -322,4 +313,14 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
       </ScrollArea>
     </div>
   );
+}
+
+// Helper function to format JSON strings
+function formatJSON(jsonString: string) {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    return jsonString;
+  }
 }
