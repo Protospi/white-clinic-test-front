@@ -85,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messages: allMessages,
           variables: memory.variables,
           contactData: {
-            telefone: "558597496194" // Default test phone number
+            "6788e87026b973cbbc4f30bb": "5531992169508" // Default test phone number
           }
         },
         identifier: "558597496194" // Default test identifier
@@ -234,7 +234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messages: allMessages,
           variables: memory.variables,
           contactData: {
-            telefone: "558597496194" // Default test phone number
+            "6788e87026b973cbbc4f30bb": "5531992169508", // Default test phone number
+            "6788e87026b973cbbc4f30ba": "pedro.loes@smarttalks.ai"
           }
         },
         identifier: "558597496194" // Default test identifier
