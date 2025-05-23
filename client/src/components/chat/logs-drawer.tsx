@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, ChevronDown, ChevronRight, Download, UserCog } from "lucide-react";
 import { useState } from "react";
 import { MarkdownRenderer } from "@/lib/markdown-utils";
+import { AssistantType } from "@/components/chat/header";
 import {
   Collapsible,
   CollapsibleContent,
@@ -15,10 +16,15 @@ interface LogsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   messages: any[];
+  assistantType: AssistantType;
 }
 
-export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProps) {
+export default function LogsDrawer({ isOpen, onClose, messages, assistantType }: LogsDrawerProps) {
   const { toast } = useToast();
+
+  const getAssistantInitials = () => {
+    return assistantType === "white-clinic" ? "WC" : "SP";
+  };
 
   // Group messages by "conversation segments"
   // Each segment is a sequence of messages without clear breaks
@@ -206,7 +212,7 @@ export default function LogsDrawer({ isOpen, onClose, messages }: LogsDrawerProp
                           <div className="flex items-start w-4/5">
                             <div className="flex-shrink-0 mr-2">
                               <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-gray-200 text-indigo-500">
-                                <span className="text-sm">A</span>
+                                <span className="text-sm">{getAssistantInitials()}</span>
                               </div>
                             </div>
                             <div className="flex-1 p-3 rounded-lg bg-white text-gray-800 shadow-sm">

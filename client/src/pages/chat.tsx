@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import ChatHeader from "@/components/chat/header";
+import ChatHeader, { AssistantType } from "@/components/chat/header";
 import MessageList from "@/components/chat/message-list";
 import MessageInput from "@/components/chat/message-input";
 import LogsDrawer from "@/components/chat/logs-drawer";
@@ -14,6 +14,7 @@ export default function ChatPage() {
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
+  const [assistantType, setAssistantType] = useState<AssistantType>("spitz-pomer");
   const messageListRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -40,7 +41,10 @@ export default function ChatPage() {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiRequest("POST", "/api/autobots/messages", { content });
+      const response = await apiRequest("POST", "/api/autobots/messages", { 
+        content,
+        assistantType 
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -62,7 +66,10 @@ export default function ChatPage() {
   // Debug message mutation
   const debugMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await apiRequest("POST", "/api/autobots/debug", { content });
+      const response = await apiRequest("POST", "/api/autobots/debug", { 
+        content,
+        assistantType 
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -237,6 +244,8 @@ export default function ChatPage() {
         onShowLogs={handleToggleLogs}
         hasCheckpoint={hasCheckpoint}
         debugMode={debugMode}
+        assistantType={assistantType}
+        onAssistantTypeChange={setAssistantType}
       />
       
       <MessageList 
@@ -244,6 +253,7 @@ export default function ChatPage() {
         isLoading={isLoading}
         waitingForResponse={waitingForResponse}
         ref={messageListRef}
+        assistantType={assistantType}
       />
       
       <MessageInput 
@@ -260,6 +270,7 @@ export default function ChatPage() {
         isOpen={isLogsOpen} 
         onClose={handleToggleLogs} 
         messages={messages}
+        assistantType={assistantType}
       />
     </div>
   );

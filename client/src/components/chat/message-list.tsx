@@ -1,14 +1,24 @@
 import { forwardRef, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AssistantType } from "@/components/chat/header";
 
 interface MessageListProps {
   messages: any[];
   isLoading: boolean;
   waitingForResponse?: boolean;
+  assistantType: AssistantType;
 }
 
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
-  ({ messages, isLoading, waitingForResponse = false }, ref) => {
+  ({ messages, isLoading, waitingForResponse = false, assistantType }, ref) => {
+    const getAssistantName = () => {
+      return assistantType === "white-clinic" ? "assistente White Clinic" : "assistente Spitz Pomer";
+    };
+
+    const getAssistantInitials = () => {
+      return assistantType === "white-clinic" ? "WC" : "SP";
+    };
+
     if (isLoading) {
       return (
         <div className="flex-1 p-4 overflow-hidden">
@@ -29,14 +39,15 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
         >
           {messages.length === 0 && !waitingForResponse && (
             <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500 text-sm">Start a conversation with the White Clinic Assistant.</p>
+              <p className="text-gray-500 text-sm">Comece uma conversa com o {getAssistantName()}.</p>
             </div>
           )}
           
           {messages.map((message, index) => (
             <MessageBubble 
               key={index} 
-              message={message} 
+              message={message}
+              assistantType={assistantType}
             />
           ))}
 
@@ -45,7 +56,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
               <div className="flex max-w-sm md:max-w-xl lg:max-w-2xl flex-row">
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full flex items-center justify-center bg-white border border-gray-200 text-indigo-500">
-                    <span className="text-sm">WC</span>
+                    <span className="text-sm">{getAssistantInitials()}</span>
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-white text-gray-800 shadow-sm ml-2">
@@ -117,11 +128,15 @@ function formatJSON(jsonString: string) {
   }
 }
 
-function MessageBubble({ message }: { message: any }) {
+function MessageBubble({ message, assistantType }: { message: any; assistantType: AssistantType }) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const isFunctionCall = message.type === "function_call";
   const isFunctionOutput = message.type === "function_call_output";
+  
+  const getAssistantInitials = () => {
+    return assistantType === "white-clinic" ? "WC" : "SP";
+  };
   
   // Skip system messages and unsupported types
   if (message.role === "system" || (!isUser && !isAssistant && !isFunctionCall && !isFunctionOutput)) {
@@ -155,7 +170,7 @@ function MessageBubble({ message }: { message: any }) {
                   ? "F" 
                   : isFunctionOutput 
                     ? "R" 
-                    : "A"}
+                    : getAssistantInitials()}
             </span>
           </div>
         </div>

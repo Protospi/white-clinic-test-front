@@ -54,7 +54,7 @@ export default function MessageInput({ onSendMessage, isLoading, debugMode = fal
           className={`flex-1 border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
             debugMode ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-indigo-500"
           }`}
-          placeholder={debugMode ? "Debug mode - type /debug to exit..." : "Type your message..."}
+          placeholder={debugMode ? "Modo de depuração - digite /debug para sair..." : "Digite sua mensagem..."}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           autoComplete="off"

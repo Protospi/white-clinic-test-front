@@ -7,7 +7,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const AUTOBOTS_API_URL = "http://localhost:3004/api/v1/agents/white-clinic/chat";
+const getAutobotsApiUrl = (assistantType: string) => {
+  return `http://localhost:3004/api/v1/agents/${assistantType}/chat`;
+};
 
 // Create memory object
 const memory = {
@@ -58,7 +60,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
-        content: z.string().min(1)
+        content: z.string().min(1),
+        assistantType: z.enum(["white-clinic", "spitz-pomer"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
@@ -92,6 +95,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log("Debug route - autobotsPayload", JSON.stringify(autobotsPayload, null, 2));
+
+      // Get the dynamic API URL based on the selected assistant type
+      const AUTOBOTS_API_URL = getAutobotsApiUrl(validatedData.assistantType);
 
       // Call Autobots API
       const autobotsResponse = await fetch(AUTOBOTS_API_URL, {
@@ -206,7 +212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
-        content: z.string().min(1)
+        content: z.string().min(1),
+        assistantType: z.enum(["white-clinic", "spitz-pomer"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
@@ -242,6 +249,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log("autobotsPayload", JSON.stringify(autobotsPayload.memory.messages, null, 2));
+
+      // Get the dynamic API URL based on the selected assistant type
+      const AUTOBOTS_API_URL = getAutobotsApiUrl(validatedData.assistantType);
 
       // Call Autobots API
       const autobotsResponse = await fetch(AUTOBOTS_API_URL, {
