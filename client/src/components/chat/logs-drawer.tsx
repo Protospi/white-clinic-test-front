@@ -177,7 +177,7 @@ export default function LogsDrawer({ isOpen, onClose, messages, assistantType }:
       }`}
     >
       <div className="flex justify-between items-center p-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-800">Conversation History</h2>
+        <h2 className="text-xl font-semibold text-gray-800">Histórico de conversa</h2>
         <div className="flex gap-2">
           <Button 
             variant="default" 
@@ -186,7 +186,7 @@ export default function LogsDrawer({ isOpen, onClose, messages, assistantType }:
             className="flex items-center gap-1 bg-indigo-500 hover:bg-indigo-600"
           >
             <Download className="h-4 w-4" />
-            Export as Markdown
+            Exportar como Markdown
           </Button>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-6 w-6" />
@@ -198,7 +198,7 @@ export default function LogsDrawer({ isOpen, onClose, messages, assistantType }:
         <div className="space-y-6">
           {messages.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No conversation history yet.</p>
+              <p className="text-gray-500">Não há histórico de conversa ainda.</p>
             </div>
           ) : (
             messageGroups.map((group, groupIndex) => (

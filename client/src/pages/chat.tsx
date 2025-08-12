@@ -14,7 +14,7 @@ export default function ChatPage() {
   const [hasCheckpoint, setHasCheckpoint] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
-  const [assistantType, setAssistantType] = useState<AssistantType>("spitz-pomer");
+  const [assistantType, setAssistantType] = useState<AssistantType>("beach-park");
   const messageListRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 

@@ -3,7 +3,7 @@ import { PinIcon, History, Trash2, ClipboardList, Bug } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export type AssistantType = "spitz-pomer" | "white-clinic";
+export type AssistantType = "loocal" | "spitz-pomer" | "white-clinic" | "scolados" | "olivas" | "beach-park";
 
 interface HeaderProps {
   onCheckpoint: () => void;
@@ -34,8 +34,12 @@ export default function ChatHeader({
               <SelectValue placeholder="Selecione o Assistente" />
             </SelectTrigger>
             <SelectContent>
+            <SelectItem value="loocal">Loocal</SelectItem>
               <SelectItem value="spitz-pomer">Spitz Pomer</SelectItem>
               <SelectItem value="white-clinic">White Clinic</SelectItem>
+              <SelectItem value="scolados">Scolados</SelectItem>
+              <SelectItem value="olivas">Olivas</SelectItem>
+              <SelectItem value="beach-park">Beach Park</SelectItem>
             </SelectContent>
           </Select>
           {debugMode && <span className="ml-2 text-sm font-normal text-red-500">[Debug Mode]</span>}
@@ -79,7 +83,7 @@ export default function ChatHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {hasCheckpoint ? "Restore to checkpoint" : "Save checkpoint"}
+              {hasCheckpoint ? "Restaurar para o checkpoint" : "Salvar checkpoint"}
             </TooltipContent>
           </Tooltip>
 
@@ -96,7 +100,7 @@ export default function ChatHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              Clear conversation
+              Limpar conversa
             </TooltipContent>
           </Tooltip>
 
@@ -113,7 +117,7 @@ export default function ChatHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              View conversation history
+              Ver histórico de conversa
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssistantType } from "@/components/chat/header";
-
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 interface MessageListProps {
   messages: any[];
   isLoading: boolean;
@@ -12,11 +13,41 @@ interface MessageListProps {
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
   ({ messages, isLoading, waitingForResponse = false, assistantType }, ref) => {
     const getAssistantName = () => {
-      return assistantType === "white-clinic" ? "assistente White Clinic" : "assistente Spitz Pomer";
+      switch (assistantType) {
+        case "white-clinic":
+          return "assistente White Clinic";
+        case "spitz-pomer":
+          return "assistente Spitz Pomer";
+        case "loocal":
+          return "assistente Loocal";
+        case "scolados":
+          return "assistente Scolados";
+        case "olivas":
+          return "assistente Olivas";
+        case "beach-park":
+          return "assistente Beach Park";
+        default:
+          return "assistente";
+      }
     };
 
     const getAssistantInitials = () => {
-      return assistantType === "white-clinic" ? "WC" : "SP";
+      switch (assistantType) {
+        case "white-clinic":
+          return "WC";
+        case "spitz-pomer":
+          return "SP";
+        case "loocal":
+          return "LO";
+        case "scolados":
+          return "ES";
+        case "olivas":
+          return "OL";
+        case "beach-park":
+          return "BP";
+        default:
+          return "";
+      }
     };
 
     if (isLoading) {
@@ -90,32 +121,46 @@ function TypingAnimation() {
 
 function FunctionCallMessage({ message }: { message: any }) {
   return (
-    <div className="bg-orange-100 p-2 rounded text-xs">
-      <div><span className="font-semibold">Function Name:</span> {message.name}</div>
-      {message.arguments && (
-        <div className="mt-1">
-          <span className="font-semibold">Arguments:</span>
-          <pre className="mt-1 bg-orange-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-            {formatJSON(message.arguments)}
-          </pre>
+    <Collapsible className="bg-orange-100 p-2 pl-4 rounded text-xs">
+      <CollapsibleTrigger className="flex items-center justify-between w-full">
+        <div className="flex items-center">
+          <span className="font-semibold pr-2">Execução da Função:</span> {message.name}
         </div>
-      )}
-    </div>
+        <ChevronDown className="h-4 w-4 ml-4" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {message.arguments && (
+          <div className="mt-1">
+            <span className="font-semibold">Argumentos:</span>
+            <pre className="mt-1 bg-orange-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
+              {formatJSON(message.arguments)}
+            </pre>
+          </div>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
 function FunctionOutputMessage({ message }: { message: any }) {
   return (
-    <div className="bg-green-100 p-2 rounded text-xs">
-      <div><span className="font-semibold">Function Output:</span></div>
-      {message.output && (
-        <div className="mt-1">
-          <pre className="mt-1 bg-green-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
-            {formatJSON(message.output)}
-          </pre>
+    <Collapsible className="bg-green-100 p-2 pl-4 rounded text-xs">
+      <CollapsibleTrigger className="flex items-center justify-between w-full">
+        <div className="flex items-center">
+          <span className="font-semibold">Resultado da Função</span>
         </div>
-      )}
-    </div>
+        <ChevronDown className="h-4 w-4 ml-4" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {message.output && (
+          <div className="mt-1">
+            <pre className="mt-1 bg-green-200 p-1 rounded overflow-x-auto whitespace-pre-wrap">
+              {formatJSON(message.output)}
+            </pre>
+          </div>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -135,7 +180,22 @@ function MessageBubble({ message, assistantType }: { message: any; assistantType
   const isFunctionOutput = message.type === "function_call_output";
   
   const getAssistantInitials = () => {
-    return assistantType === "white-clinic" ? "WC" : "SP";
+    switch (assistantType) {
+      case "white-clinic":
+        return "WC";
+      case "spitz-pomer":
+        return "SP";
+      case "loocal":
+        return "LO";
+      case "scolados":
+        return "ES";
+      case "olivas":
+        return "OL";
+      case "beach-park":
+        return "BP";
+      default:
+        return "";
+    }
   };
   
   // Skip system messages and unsupported types

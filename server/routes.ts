@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
         content: z.string().min(1),
-        assistantType: z.enum(["white-clinic", "spitz-pomer"])
+        assistantType: z.enum(["white-clinic", "spitz-pomer", "beach-park"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
         content: z.string().min(1),
-        assistantType: z.enum(["white-clinic", "spitz-pomer"])
+        assistantType: z.enum(["white-clinic", "spitz-pomer", "loocal", "scolados", "olivas", "beach-park"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
@@ -241,11 +241,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           messages: allMessages,
           variables: memory.variables,
           contactData: {
-            "6788e87026b973cbbc4f30bb": "5531992169508", // Default test phone number
-            "6788e87026b973cbbc4f30ba": "pedro.loes@smarttalks.ai"
+            "6788e87026b973cbbc4f30bb": "5531992165784", // Default test phone number
+            "6788e87026b973cbbc4f30ba": "test@smarttalks.ai"
           }
         },
-        identifier: "558597496194" // Default test identifier
+        identifier: "553197496193" // Default test identifier
       };
 
       console.log("autobotsPayload", JSON.stringify(autobotsPayload.memory.messages, null, 2));
