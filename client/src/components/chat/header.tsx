@@ -3,7 +3,7 @@ import { PinIcon, History, Trash2, ClipboardList, Bug } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export type AssistantType = "loocal" | "spitz-pomer" | "white-clinic" | "scolados" | "olivas" | "beach-park";
+export type AssistantType = "loocal" | "spitz-pomer" | "white-clinic" | "scolados" | "olivas" | "beach-park" | "scan-chip";
 
 interface HeaderProps {
   onCheckpoint: () => void;
@@ -40,6 +40,7 @@ export default function ChatHeader({
               <SelectItem value="scolados">Scolados</SelectItem>
               <SelectItem value="olivas">Olivas</SelectItem>
               <SelectItem value="beach-park">Beach Park</SelectItem>
+              <SelectItem value="scan-chip">Scan Chip</SelectItem>
             </SelectContent>
           </Select>
           {debugMode && <span className="ml-2 text-sm font-normal text-red-500">[Debug Mode]</span>}

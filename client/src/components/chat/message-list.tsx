@@ -26,6 +26,8 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
           return "assistente Olivas";
         case "beach-park":
           return "assistente Beach Park";
+        case "scan-chip":
+          return "assistente Scan Chip";
         default:
           return "assistente";
       }
@@ -45,6 +47,8 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
           return "OL";
         case "beach-park":
           return "BP";
+        case "scan-chip":
+          return "SC";
         default:
           return "";
       }
@@ -193,6 +197,8 @@ function MessageBubble({ message, assistantType }: { message: any; assistantType
         return "OL";
       case "beach-park":
         return "BP";
+      case "scan-chip":
+        return "SC";
       default:
         return "";
     }

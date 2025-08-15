@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
         content: z.string().min(1),
-        assistantType: z.enum(["white-clinic", "spitz-pomer", "beach-park"])
+        assistantType: z.enum(["white-clinic", "spitz-pomer", "beach-park", "scan-chip"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a local schema for validating incoming messages from client
       const messageInputSchema = z.object({
         content: z.string().min(1),
-        assistantType: z.enum(["white-clinic", "spitz-pomer", "loocal", "scolados", "olivas", "beach-park"])
+        assistantType: z.enum(["white-clinic", "spitz-pomer", "loocal", "scolados", "olivas", "beach-park", "scan-chip"])
       });
       
       const validatedData = messageInputSchema.parse(req.body);
